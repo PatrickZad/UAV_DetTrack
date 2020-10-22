@@ -26,24 +26,28 @@ awning-tricycle(8),
 others(11)->others(9)
 '''
 visdrone_category_trans=[-1,0,0,1,4,5,6,7,8,3,2,9]
-def visdrone_d_train():
-    train_dir=join(visdrone_dir,'VisDrone2019-DET-train')
-    anno_dir=join(train_dir,'annotations')
-    img_dir=join(train_dir,'images')
+def filename_padding(length:int,id:int):
+    str_id=str(id)
+    while len(str_id)<length:
+        str_id='0'+str_id
+    return str_id
+def visdrone_d_func(dir):
+    anno_dir=join(dir,'annotations')
+    img_dir=join(dir,'images')
     result_list=[]
     for img_file in os.listdir(img_dir):
         file_dict={}
-        img_id=img_file[:-3]
-        file_dict['file_name']=img_file
+        img_id=img_file[:-4]
+        file_dict['file_name']=join(img_dir,img_file)
         img_arr=cv.imread(join(img_dir,img_file))
         file_dict['height']=img_arr.shape[0]
         file_dict['width']=img_arr.shape[1]
         file_dict['image_id']=img_id
         anno_list=[]
         with open(join(anno_dir,img_id+'.txt'),'r') as anno_file:
-            obj_line=anno_file.readline()
-            while obj_line is not None:
-                num_arr=np.float32(obj_line.strip().split(','))
+            obj_lines=anno_file.readlines()
+            for obj_line in obj_lines:
+                num_arr=np.float32(obj_line.strip().strip(',').split(','))
                 cate=visdrone_category_trans[int(num_arr[5])]
                 if num_arr[4] == 0 or cate<0 or num_arr[6]>0 or num_arr[7]>1:
                     continue
@@ -53,15 +57,52 @@ def visdrone_d_train():
                 obj_dict['category_id']=cate
                 anno_list.append(obj_dict)
         file_dict['annotations']=anno_list
-        result_list.append()
+        result_list.append(file_dict)
     return result_list
-                
 
-    
+def visdrone_d_train():
+    train_dir=join(visdrone_dir,'VisDrone2019-DET-train')
+    return visdrone_d_func(train_dir)
+                    
 def visdrone_d_val():
-    pass
+    val_dir=join(visdrone_dir,'VisDrone2019-DET-val')
+    return visdrone_d_func(val_dir)
+
 def visdrone_dt_train():
-    pass
+    train_dir=join(visdrone_dir,'VisDrone2019-MOT-train')
+    anno_dir=join(train_dir,'annotations')
+    seq_dir=join(train_dir,'sequences')
+    result_list=[]
+    for img_seq in os.listdir(seq_dir):
+        with open(anno_dir,img_seq+'.txt','r') as seq_anno:
+            lines=seq_anno.readlines()
+            str_num_list=[line.strip().strip(',').split(',') for line in lines]
+            num_arr=np.float32(str_num_list)
+        frame_ids=range(int(num_arr[:,0].min()),int(num_arr[:,0].max())+1)
+        for fid in frame_ids:
+            anno_arr=num_arr[num_arr[:,0]==fid]
+            file_dict={}
+            img_fname=filename_padding(7,fid)
+            img_id=img_seq+img_fname
+            file_dict['file_name']=join(seq_dir,img_seq,img_fname+'.jpg')
+            img_arr=cv.imread(file_dict['file_name'])
+            file_dict['height']=img_arr.shape[0]
+            file_dict['width']=img_arr.shape[1]
+            file_dict['image_id']=img_id
+            anno_list=[]
+            for idx in range(anno_arr.shape[0]):
+                anno_line=anno_arr[idx,:]
+                cate=visdrone_category_trans[int(anno_line[7])]
+                if anno_line[6] == 0 or cate<0 or anno_line[8]>0 or anno_line[9]>1:
+                    continue
+                obj_dict={}
+                obj_dict['bbox']=anno_line[2:6].tolist()
+                obj_dict['bbox_mode']=BoxMode.XYWH_ABS
+                obj_dict['category_id']=cate
+                anno_list.append(obj_dict)
+            file_dict['annotations']=anno_list
+            result_list.append(file_dict)
+    return result_list+visdrone_d_train()
 def visdrone_t_val():
     pass
 def uavdt_d_train():
@@ -91,3 +132,6 @@ MetadataCatalog.get('visdrone_t_val').thin_classes=['people','bicycle','motor','
 DatasetCatalog.register('uavdt_d_train',uavdt_d_train)
 DatasetCatalog.register('uavdt_d_val',uavdt_d_val)
 DatasetCatalog.register('uavdt_t_val',uavdt_t_val)
+
+if __name__=='__main__':
+    visdrone_d_train()
