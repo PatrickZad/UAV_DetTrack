@@ -1,0 +1,18 @@
+MODEL:
+  META_ARCHITECTURE: "YOLOv4x"
+  BACKBONE:
+    NAME: "build_yolov4_backbone"
+    FREEZE_AT: 2
+  WEIGHTS: "weights/yolov4x-mish.pt"
+INPUT:
+  FORMAT: "RGB"
+
+DATASETS:
+  TRAIN: ('visdrone_dt_train',)
+  VAL: ('visdrone_d_val',)
+
+TEST:
+  EVAL_PERIOD: 2000
+
+VIS_PERIOD: 200
+VERSION: 1
